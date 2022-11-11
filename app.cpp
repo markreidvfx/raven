@@ -8,7 +8,6 @@
 #include "implot.h"
 
 #include "imgui_plot.h"
-#include "imguihelper.h"
 #include "widgets.h"
 
 #define IMGUI_DEFINE_MATH_OPERATORS

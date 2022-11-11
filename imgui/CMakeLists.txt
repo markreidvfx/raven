@@ -17,7 +17,6 @@ target_sources(IMGUI
     imgui.cpp
 
     # add-ons
-    imguihelper.cpp
     imgui_plot.cpp
     ../libs/implot/implot.cpp
     ../libs/implot/implot_demo.cpp
