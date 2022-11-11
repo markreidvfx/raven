@@ -25,7 +25,6 @@ target_sources(IMGUI
     # backends
     imgui_impl_glfw.cpp
     imgui_impl_opengl3.cpp
-    ../libs/gl3w/GL/gl3w.c
 )
 target_include_directories(IMGUI
   SYSTEM PUBLIC .
