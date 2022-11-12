@@ -92,6 +92,8 @@ struct AppState {
     float scale = 100.0f; // zoom scale, measured in pixels per second
     float default_track_height = 30.0f; // (pixels)
     float track_height = 30.0f; // current track height (pixels)
+    float dpi;
+    ImVec2 scroll;
     otio::RationalTime playhead;
     bool scroll_to_playhead = false; // temporary flag, only true until next frame
     otio::TimeRange

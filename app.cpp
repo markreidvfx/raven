@@ -471,7 +471,7 @@ void MainGui() {
 
         // Wrap the timeline so we can control how much room is left below it
         ImVec2 contentSize = ImGui::GetContentRegionAvail();
-        contentSize.y -= ImGui::GetTextLineHeightWithSpacing() + 7;
+        contentSize.y -= ImGui::GetTextLineHeightWithSpacing() + 7 * ImGui::GetWindowDpiScale();
         ImGui::BeginChild("##TimelineContainer", contentSize);
 
         DrawTimeline(appState.timeline);

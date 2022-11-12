@@ -1038,6 +1038,7 @@ float DrawPlayhead(
 
 bool DrawTransportControls(otio::Timeline* timeline) {
     bool moved_playhead = false;
+    float dpi = ImGui::GetWindowDpiScale();
 
     auto start = appState.playhead_limit.start_time();
     auto duration = appState.playhead_limit.duration();
@@ -1060,7 +1061,7 @@ bool DrawTransportControls(otio::Timeline* timeline) {
     ImGui::Text("%s", start_string.c_str());
     ImGui::SameLine();
 
-    ImGui::SetNextItemWidth(-270);
+    ImGui::SetNextItemWidth(-270 * dpi);
     float playhead_seconds = appState.playhead.to_seconds();
     if (ImGui::SliderFloat(
             "##Playhead",
@@ -1076,7 +1077,7 @@ bool DrawTransportControls(otio::Timeline* timeline) {
     ImGui::Text("%s", end_string.c_str());
 
     ImGui::SameLine();
-    ImGui::SetNextItemWidth(100);
+    ImGui::SetNextItemWidth(100 * dpi);
     if (ImGui::SliderFloat(
             "##Zoom",
             &appState.scale,
@@ -1221,7 +1222,6 @@ bool DrawTransportControls(otio::Timeline* timeline) {
         ImGui::GetCursorPosY() + 2 * ImGui::GetTextLineHeightWithSpacing());
 
     //-------------------------------------------------------------------------
-
     return moved_playhead;
 }
 
@@ -1230,7 +1230,10 @@ void DrawTrackSplitter(const char* str_id, float splitter_size) {
     float sz1 = 0;
     float sz2 = 0;
     float width = ImGui::GetContentRegionAvail().x;
-    float sz1_min = -(appState.track_height - 25.0f) * num_tracks_above;
+    float dpi = ImGui::GetWindowDpiScale();
+    float track_height = appState.track_height * dpi;
+    float inv_dpi = 1.0f / dpi;
+    float sz1_min = -(track_height - (25.0f*dpi)) * num_tracks_above;
     if (Splitter(
             str_id,
             false,
@@ -1238,12 +1241,12 @@ void DrawTrackSplitter(const char* str_id, float splitter_size) {
             &sz1,
             &sz2,
             sz1_min,
-            -200,
+            -200 * dpi,
             width,
             0)) {
         appState.track_height = fminf(
-            200.0f,
-            fmaxf(25.0f, appState.track_height + (sz1 / num_tracks_above)));
+            200.0f * dpi,
+            fmaxf(25.0f * dpi, track_height + (sz1 / num_tracks_above))) * inv_dpi;
     }
     ImGui::Dummy(ImVec2(splitter_size, splitter_size));
 }
@@ -1270,15 +1273,21 @@ void DrawTimeline(otio::Timeline* timeline) {
     auto video_tracks = timeline->video_tracks();
     auto audio_tracks = timeline->audio_tracks();
 
-    // Tracks
+    float dpi = ImGui::GetWindowDpiScale();
+    if (dpi != appState.dpi && appState.dpi != 0)
+        appState.scale *= dpi / appState.dpi;
 
     auto available_size = ImGui::GetContentRegionAvail();
     appState.timeline_width = 0.8f * available_size.x;
 
-    float full_width = duration.to_seconds() * appState.scale;
+    float track_height = appState.track_height * dpi;
+    float scale = appState.scale;
+
+    float full_width = duration.to_seconds() * scale;
     float full_height = available_size.y - ImGui::GetFrameHeightWithSpacing();
 
-    static ImVec2 cell_padding(2.0f, 0.0f);
+
+    static ImVec2 cell_padding(2.0f*dpi, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, cell_padding);
 
     // reset counters
@@ -1289,25 +1298,26 @@ void DrawTimeline(otio::Timeline* timeline) {
         | ImGuiTableFlags_NoSavedSettings
         | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_ScrollX
         | ImGuiTableFlags_ScrollY | 0;
+
     if (ImGui::BeginTable("Tracks", 2, flags)) {
-        ImGui::TableSetupColumn("Track", 0, 100);
-        ImGui::TableSetupColumn(
-            "Composition",
-            ImGuiTableColumnFlags_WidthFixed);
+        float track_column_width = 100.0f*dpi;
+        ImGui::TableSetupColumn("Track", 0, track_column_width);
+        ImGui::TableSetupColumn("Composition",
+                                ImGuiTableColumnFlags_WidthFixed);
         if (ImGui::GetFrameCount() > 1) { // crash if we call this on the 1st frame?!
             // We allow the 1st column to be user-resizable, but
             // we want the 2nd column to always fit the timeline content.
             // Add some padding, so you can read the playhead label when it sticks off
             // the end.
-            ImGui::TableSetColumnWidth(1, fmaxf(0.0f, full_width) + 200.0f);
+            ImGui::TableSetColumnWidth(1, fmaxf(0.0f, full_width) + track_column_width);
         }
         // Always show the track labels & the playhead track
         ImGui::TableSetupScrollFreeze(1, 1);
 
-        ImGui::TableNextRow(ImGuiTableRowFlags_None, appState.track_height);
+        ImGui::TableNextRow(ImGuiTableRowFlags_None, track_height);
         ImGui::TableNextColumn();
 
-        DrawObjectLabel(timeline, appState.track_height);
+        DrawObjectLabel(timeline, track_height);
 
         ImGui::TableNextColumn();
 
@@ -1319,18 +1329,18 @@ void DrawTimeline(otio::Timeline* timeline) {
                 start,
                 end,
                 playhead.rate(),
-                appState.scale,
+                scale,
                 full_width,
-                appState.track_height)) {
+                track_height)) {
             // scroll_to_playhead = true;
         }
 
         std::map<otio::Composable*, otio::TimeRange> empty_map;
         DrawMarkers(
             timeline->tracks(),
-            appState.scale,
+            scale,
             origin,
-            appState.track_height,
+            track_height,
             empty_map);
 
         // draw just the top of the playhead in the fixed timecode track
@@ -1338,40 +1348,40 @@ void DrawTimeline(otio::Timeline* timeline) {
             start,
             end,
             playhead,
-            appState.scale,
+            scale,
             full_width,
-            appState.track_height,
-            appState.track_height,
+            track_height,
+            track_height,
             origin,
             true);
 
         // now shift the origin down below the timecode track
-        origin.y += appState.track_height;
+        origin.y += track_height;
 
         int index = (int)video_tracks.size();
         for (auto i = video_tracks.rbegin(); i != video_tracks.rend(); ++i)
         // for (const auto& video_track : video_tracks)
         {
             const auto& video_track = *i;
-            ImGui::TableNextRow(ImGuiTableRowFlags_None, appState.track_height);
+            ImGui::TableNextRow(ImGuiTableRowFlags_None, track_height);
             if (ImGui::TableNextColumn()) {
-                DrawTrackLabel(video_track, index, appState.track_height);
+                DrawTrackLabel(video_track, index, track_height);
             }
             if (ImGui::TableNextColumn()) {
                 DrawTrack(
                     video_track,
                     index,
-                    appState.scale,
+                    scale,
                     origin,
                     full_width,
-                    appState.track_height);
+                    track_height);
             }
             index--;
         }
 
         // Make a splitter between the Video and Audio tracks
         // You can drag up/down to adjust the track height
-        float splitter_size = 5.0f;
+        float splitter_size = 5.0f * dpi;
 
         ImGui::TableNextRow(ImGuiTableRowFlags_None, splitter_size);
         ImGui::TableNextColumn();
@@ -1381,18 +1391,18 @@ void DrawTimeline(otio::Timeline* timeline) {
 
         index = 1;
         for (const auto& audio_track : audio_tracks) {
-            ImGui::TableNextRow(ImGuiTableRowFlags_None, appState.track_height);
+            ImGui::TableNextRow(ImGuiTableRowFlags_None, track_height);
             if (ImGui::TableNextColumn()) {
-                DrawTrackLabel(audio_track, index, appState.track_height);
+                DrawTrackLabel(audio_track, index, track_height);
             }
             if (ImGui::TableNextColumn()) {
                 DrawTrack(
                     audio_track,
                     index,
-                    appState.scale,
+                    scale,
                     origin,
                     full_width,
-                    appState.track_height);
+                    track_height);
             }
             index++;
         }
@@ -1406,9 +1416,9 @@ void DrawTimeline(otio::Timeline* timeline) {
             start,
             end,
             playhead,
-            appState.scale,
+            scale,
             full_width,
-            appState.track_height,
+            track_height,
             full_height,
             origin,
             false);
@@ -1425,7 +1435,19 @@ void DrawTimeline(otio::Timeline* timeline) {
         // ImGui::SetTooltip("Tracks rendered: %d\nItems rendered: %d",
         // __tracks_rendered, __items_rendered);
 
+        // Modify scroll on dpi change, change will happen next frame.
+        // NOTE: On windows there seems to be issue with preserving the Y scroll when
+        // going from a lower dpi to a higher dpi, window->DC.cursor isn't getting scaled correctly I think.
+        if (dpi != appState.dpi && appState.dpi != 0) {
+            // SetScroll sets targetScroll and won't be applied until next frame
+            ImGui::SetScrollX(appState.scroll.x * dpi/appState.dpi);
+            ImGui::SetScrollY(appState.scroll.y * dpi/appState.dpi);
+        } else {
+            appState.scroll.x = ImGui::GetScrollX();
+            appState.scroll.y = ImGui::GetScrollY();
+        }
         ImGui::EndTable();
     }
+    appState.dpi = dpi;
     ImGui::PopStyleVar();
 }
